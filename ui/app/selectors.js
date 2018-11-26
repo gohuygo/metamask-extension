@@ -1,9 +1,7 @@
 const abi = require('human-standard-token-abi')
-
 import {
   transactionsSelector,
 } from './selectors/transactions'
-
 const {
   multiplyCurrencies,
 } = require('./conversion-util')
@@ -36,6 +34,7 @@ const selectors = {
   getCurrentViewContext,
   getTotalUnapprovedCount,
   preferencesSelector,
+  getMetaMaskAccounts,
 }
 
 module.exports = selectors
@@ -54,7 +53,20 @@ function getSelectedIdentity (state) {
 }
 
 function getMetaMaskAccounts (state) {
-  return state.metamask.accounts
+  const currentAccounts = state.metamask.accounts
+  const cachedAccountBalances = state.metamask.cachedAccountBalances
+  const selectedAccounts = {}
+
+  Object.keys(currentAccounts).forEach(accountID => {
+    const account = currentAccounts[accountID]
+    if (account.balance === null || account.balance === undefined) {
+      selectedAccounts[accountID] = cachedAccountBalances[accountID]
+    } else {
+      selectedAccounts[accountID] = account
+    }
+  })
+
+  return selectedAccounts
 }
 
 function getSelectedAccount (state) {
