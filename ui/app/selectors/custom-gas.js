@@ -153,14 +153,26 @@ function getTimeEstimateInSeconds (blockWaitEstimate) {
   })
 }
 
-function formatTimeEstimate (totalSeconds) {
+function formatTimeEstimate (totalSeconds, greaterThanMax, lessThanMin) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = Math.floor(totalSeconds % 60)
+
+  if (!minutes && !seconds) {
+    return '...'
+  }
+
+  let symbol = '~'
+  if (greaterThanMax) {
+    symbol = '> '
+  } else if (lessThanMin) {
+    symbol = '< '
+  }
+
   const formattedMin = `${minutes ? minutes + ' min' : ''}`
   const formattedSec = `${seconds ? seconds + ' sec' : ''}`
   const formattedCombined = formattedMin && formattedSec
-    ? `~${formattedMin} ${formattedSec}`
-    : '~' + [formattedMin, formattedSec].find(t => t)
+    ? `${symbol}${formattedMin} ${formattedSec}`
+    : symbol + [formattedMin, formattedSec].find(t => t)
 
   return formattedCombined
 }
@@ -199,6 +211,7 @@ function getRenderableBasicEstimateData (state) {
     return []
   }
   const gasLimit = state.metamask.send.gasLimit || getCustomGasLimit(state)
+  console.log('--------------gasLimit--------------', gasLimit)
   const conversionRate = state.metamask.conversionRate
   const currentCurrency = getCurrentCurrency(state)
   const {

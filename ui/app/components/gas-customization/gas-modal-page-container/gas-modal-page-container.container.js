@@ -141,7 +141,9 @@ const mapDispatchToProps = dispatch => {
     cancelAndClose: () => {
       dispatch(resetCustomData())
       dispatch(hideModal())
+      dispatch(hideModal())
     },
+    hideModal: () => dispatch(hideModal()),
     updateCustomGasPrice,
     convertThenUpdateCustomGasPrice: newPrice => updateCustomGasPrice(decGWEIToHexWEI(newPrice)),
     convertThenUpdateCustomGasLimit: newLimit => dispatch(setCustomGasLimit(addHexPrefix(newLimit.toString(16)))),
@@ -150,6 +152,8 @@ const mapDispatchToProps = dispatch => {
       dispatch(setGasPrice(newPrice))
     },
     updateConfirmTxGasAndCalculate: (gasLimit, gasPrice) => {
+      updateCustomGasPrice(gasPrice)
+      dispatch(setCustomGasLimit(addHexPrefix(gasLimit.toString(16))))
       return dispatch(updateGasAndCalculate({ gasLimit, gasPrice }))
     },
     createSpeedUpTransaction: (txId, gasPrice) => {
@@ -172,6 +176,8 @@ const mergeProps = (stateProps, dispatchProps, ownProps) => {
     updateConfirmTxGasAndCalculate: dispatchUpdateConfirmTxGasAndCalculate,
     createSpeedUpTransaction: dispatchCreateSpeedUpTransaction,
     hideSidebar: dispatchHideSidebar,
+    cancelAndClose: dispatchCancelAndClose,
+    hideModal: dispatchHideModal,
     ...otherDispatchProps
   } = dispatchProps
 
@@ -182,18 +188,27 @@ const mergeProps = (stateProps, dispatchProps, ownProps) => {
     onSubmit: (gasLimit, gasPrice) => {
       if (isConfirm) {
         dispatchUpdateConfirmTxGasAndCalculate(gasLimit, gasPrice)
+        dispatchHideModal()
       } else if (isSpeedUp) {
         dispatchCreateSpeedUpTransaction(txId, gasPrice)
         dispatchHideSidebar()
+        dispatchCancelAndClose()
       } else {
         dispatchSetGasData(gasLimit, gasPrice)
         dispatchHideGasButtonGroup()
+        dispatchCancelAndClose()
       }
     },
     gasPriceButtonGroupProps: {
       ...gasPriceButtonGroupProps,
       handleGasPriceSelection: dispatchUpdateCustomGasPrice,
     },
+    cancelAndClose: () => {
+      dispatchCancelAndClose()
+      if (isSpeedUp) {
+        dispatchHideSidebar()
+      }
+    }
   }
 }
 
@@ -241,20 +256,29 @@ function addHexWEIsToRenderableFiat (aHexWEI, bHexWEI, convertedCurrency, conver
 }
 
 function getRenderableTimeEstimate (currentGasPrice, gasPrices, estimatedTimes) {
+  const minGasPrice = gasPrices[0]
+  const maxGasPrice = gasPrices[gasPrices.length - 1]
+  let priceForEstimation = currentGasPrice
+  if (currentGasPrice < minGasPrice) {
+    priceForEstimation = minGasPrice
+  } else if (currentGasPrice > maxGasPrice) {
+    priceForEstimation = maxGasPrice
+  }
+
   const {
     closestLowerValueIndex,
     closestHigherValueIndex,
     closestHigherValue,
     closestLowerValue,
-  } = getAdjacentGasPrices({ gasPrices, priceToPosition: currentGasPrice })
+  } = getAdjacentGasPrices({ gasPrices, priceToPosition: priceForEstimation })
 
   const newTimeEstimate = extrapolateY({
     higherY: estimatedTimes[closestHigherValueIndex],
     lowerY: estimatedTimes[closestLowerValueIndex],
     higherX: closestHigherValue,
     lowerX: closestLowerValue,
-    xForExtrapolation: currentGasPrice,
+    xForExtrapolation: priceForEstimation,
   })
 
-  return formatTimeEstimate(newTimeEstimate)
+  return formatTimeEstimate(newTimeEstimate, currentGasPrice > maxGasPrice, currentGasPrice < minGasPrice)
 }
