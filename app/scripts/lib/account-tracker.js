@@ -36,6 +36,7 @@ class AccountTracker {
   constructor (opts = {}) {
     const initState = {
       accounts: {},
+      cachedAccountBalances: {},
       currentBlockGasLimit: '',
     }
     this.store = new ObservableStore(initState)
@@ -184,12 +185,25 @@ class AccountTracker {
     // query balance
     const balance = await this._query.getBalance(address)
     const result = { address, balance }
-    // update accounts state
-    const { accounts } = this.store.getState()
+    // update accounts and cachedAccountBalances state
+    const { accounts, cachedAccountBalances } = this.store.getState()
     // only populate if the entry is still present
     if (!accounts[address]) return
     accounts[address] = result
-    this.store.updateState({ accounts })
+    this.store.updateState({
+      accounts,
+      cachedAccountBalances: this._generateAccountBalancesToCache(result, cachedAccountBalances),
+    })
+  }
+
+  _generateAccountBalancesToCache ({ address, balance }, cachedAccountBalances) {
+    const accountBalancesToCache = { ...cachedAccountBalances }
+
+    if (balance !== null && balance !== undefined) {
+      accountBalancesToCache[address] = balance
+    }
+
+    return accountBalancesToCache
   }
 
 }
